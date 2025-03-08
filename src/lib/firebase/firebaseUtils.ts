@@ -20,7 +20,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { Business, BusinessFormData } from '../types/business';
+import { Business, BusinessFormData, BusinessUpdateData } from '../types/business';
 import { uploadBusinessImage } from './storageUtils';
 
 // Auth functions
@@ -211,18 +211,14 @@ export async function createBusiness(
     // Create business document first to get the ID
     const businessData = {
       name: data.name,
-      nameLower: data.name.toLowerCase(),
       description: data.description,
-      descriptionLower: data.description.toLowerCase(),
       category: data.category,
       location: locationData,
       contactInfo: data.contactInfo,
       images: [], // Start with empty images array
-      ownerId: userId,
-      rating: 0,
-      reviews: [],
+      userId: userId,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     };
 
     const docRef = await addDoc(collection(db, 'businesses'), businessData);
@@ -247,7 +243,7 @@ export async function createBusiness(
     // Update the business document with image URLs
     await updateDoc(docRef, {
       images: imageUrls,
-      updatedAt: new Date(),
+      updatedAt: new Date()
     });
 
     return docRef.id;
@@ -260,7 +256,7 @@ export async function createBusiness(
 // Update business
 export const updateBusiness = async (
   businessId: string,
-  updates: Partial<BusinessFormData>
+  updates: Partial<BusinessUpdateData>
 ): Promise<void> => {
   const businessRef = doc(db, 'businesses', businessId);
   await updateDoc(businessRef, {

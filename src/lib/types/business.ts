@@ -35,6 +35,23 @@ export interface Review {
   };
 }
 
-export interface BusinessFormData extends Omit<Business, 'id' | 'createdAt' | 'updatedAt' | 'userId'> {
+export interface BusinessFormData {
+  name: string;
+  description: string;
+  category: string;
+  location: {
+    isNational: boolean;
+    province: string;
+    city: string;
+  };
+  contactInfo: {
+    instagram?: string;
+    email: string;
+    whatsapp: string;
+  };
+  images: File[];
+}
+
+export interface BusinessUpdateData extends Omit<Business, 'id' | 'createdAt' | 'updatedAt' | 'userId'> {
   images: string[];
 } 
