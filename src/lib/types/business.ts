@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export interface Business {
   id: string;
   name: string;
@@ -22,8 +24,8 @@ export interface Business {
 }
 
 export interface FirestoreBusiness extends Omit<Business, 'id' | 'createdAt' | 'updatedAt'> {
-  createdAt: Date | FirebaseFirestore.Timestamp;
-  updatedAt: Date | FirebaseFirestore.Timestamp;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
 }
 
 export interface Review {
