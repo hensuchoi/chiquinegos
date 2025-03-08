@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import { UserProfile, SUBSCRIPTION_FEATURES } from '@/lib/types/user';
 
@@ -25,12 +25,16 @@ export function useSubscription() {
           setUserProfile({
             id: userDoc.id,
             ...data,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : (data.createdAt || new Date()),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : (data.updatedAt || new Date()),
             subscription: {
               ...data.subscription,
-              startDate: data.subscription?.startDate?.toDate() || new Date(),
-              endDate: data.subscription?.endDate?.toDate() || new Date()
+              startDate: data.subscription?.startDate instanceof Timestamp 
+                ? data.subscription.startDate.toDate() 
+                : (data.subscription?.startDate || new Date()),
+              endDate: data.subscription?.endDate instanceof Timestamp 
+                ? data.subscription.endDate.toDate() 
+                : (data.subscription?.endDate || new Date())
             }
           });
         } else {
