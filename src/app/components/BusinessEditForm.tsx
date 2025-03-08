@@ -20,6 +20,22 @@ interface ImageUpload {
   progress?: number;
 }
 
+interface FormData {
+  name: string;
+  description: string;
+  category: string;
+  location: {
+    isNational: boolean;
+    province: string;
+    city: string;
+  };
+  contactInfo: {
+    instagram?: string;
+    email: string;
+    whatsapp: string;
+  };
+}
+
 const BUSINESS_CATEGORIES = [
   { id: 'alimentos', name: 'Alimentos y Bebidas' },
   { id: 'ropa', name: 'Ropa y Accesorios' },
@@ -63,7 +79,7 @@ const validateInstagramUsername = (username: string): string | null => {
 export default function BusinessEditForm({ business, onSuccess }: BusinessEditFormProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: business.name,
     description: business.description,
     category: business.category,
@@ -195,7 +211,7 @@ export default function BusinessEditForm({ business, onSuccess }: BusinessEditFo
       ...prev,
       contactInfo: {
         ...prev.contactInfo,
-        instagram: value || undefined
+        instagram: value || ''
       }
     }));
 
@@ -217,7 +233,7 @@ export default function BusinessEditForm({ business, onSuccess }: BusinessEditFo
       ...prev,
       contactInfo: {
         ...prev.contactInfo,
-        instagram: undefined
+        instagram: ''
       }
     }));
     setValidationErrors(prev => ({ ...prev, instagram: undefined }));
@@ -228,13 +244,15 @@ export default function BusinessEditForm({ business, onSuccess }: BusinessEditFo
     if (!user) return;
     
     // Validate Instagram before submitting
-    const instagramError = validateInstagramUsername(formData.contactInfo.instagram);
-    if (instagramError) {
-      setValidationErrors(prev => ({
-        ...prev,
-        instagram: instagramError
-      }));
-      return;
+    if (formData.contactInfo.instagram) {
+      const instagramError = validateInstagramUsername(formData.contactInfo.instagram);
+      if (instagramError) {
+        setValidationErrors(prev => ({
+          ...prev,
+          instagram: instagramError
+        }));
+        return;
+      }
     }
     
     setIsSubmitting(true);
@@ -267,11 +285,12 @@ export default function BusinessEditForm({ business, onSuccess }: BusinessEditFo
         ? [mainImage.url, ...otherImages.map(img => img.url)]
         : allImages.map(img => img.url);
 
-      // Update business
+      // Update business with the correct type
       await updateBusiness(business.id, {
         ...formData,
         images: orderedImages,
-      });
+        updatedAt: new Date()
+      } as Partial<Business>);
 
       onSuccess?.();
       router.push(`/negocio/${business.id}`);

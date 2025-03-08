@@ -17,6 +17,7 @@ import {
   orderBy,
   limit,
   startAfter,
+  serverTimestamp,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Business, BusinessFormData } from '../types/business';
@@ -257,43 +258,16 @@ export async function createBusiness(
 }
 
 // Update business
-export async function updateBusiness(
-  id: string,
-  data: Partial<BusinessFormData>,
-  newImages?: File[]
-): Promise<void> {
-  const businessRef = doc(db, 'businesses', id);
-  const updateData: any = { 
-    ...data,
-    updatedAt: new Date()
-  };
-
-  // Add lowercase fields if name or description are being updated
-  if (data.name) {
-    updateData.nameLower = data.name.toLowerCase();
-  }
-  if (data.description) {
-    updateData.descriptionLower = data.description.toLowerCase();
-  }
-
-  if (newImages?.length) {
-    const imageUrls = await Promise.all(
-      newImages.map(async (image) => {
-        const storageRef = ref(storage, `businesses/${Date.now()}_${image.name}`);
-        const snapshot = await uploadBytes(storageRef, image);
-        return getDownloadURL(snapshot.ref);
-      })
-    );
-
-    // Get current business data to append new images
-    const currentBusiness = await getBusinessById(id);
-    if (currentBusiness) {
-      updateData.images = [...currentBusiness.images, ...imageUrls];
-    }
-  }
-
-  await updateDoc(businessRef, updateData);
-}
+export const updateBusiness = async (
+  businessId: string,
+  updates: Partial<BusinessFormData>
+): Promise<void> => {
+  const businessRef = doc(db, 'businesses', businessId);
+  await updateDoc(businessRef, {
+    ...updates,
+    updatedAt: serverTimestamp()
+  });
+};
 
 // Delete business
 export async function deleteBusiness(id: string): Promise<void> {

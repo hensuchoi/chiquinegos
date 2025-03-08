@@ -9,16 +9,14 @@ export interface Business {
     city: string;
   };
   contactInfo: {
-    email: string;
     instagram?: string;
-    whatsapp?: string;
+    email: string;
+    whatsapp: string;
   };
   images: string[];
-  rating: number;
-  reviews: Review[];
-  ownerId: string;
   createdAt: Date;
   updatedAt: Date;
+  userId: string;
 }
 
 export interface Review {
@@ -37,19 +35,6 @@ export interface Review {
   };
 }
 
-export interface BusinessFormData {
-  name: string;
-  description: string;
-  category: string;
-  location: {
-    isNational: boolean;
-    province: string;
-    city: string;
-  };
-  contactInfo: {
-    email: string;
-    instagram?: string;
-    whatsapp?: string;
-  };
-  images: File[];
+export interface BusinessFormData extends Omit<Business, 'id' | 'createdAt' | 'updatedAt' | 'userId'> {
+  images: string[];
 } 
