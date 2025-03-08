@@ -187,19 +187,40 @@ export default function BusinessEditForm({ business, onSuccess }: BusinessEditFo
     }));
   };
 
-  const handleInstagramChange = (value: string) => {
-    const error = validateInstagramUsername(value);
-    setValidationErrors(prev => ({
-      ...prev,
-      instagram: error
-    }));
+  const handleInstagramChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Update form data
     setFormData(prev => ({
       ...prev,
       contactInfo: {
         ...prev.contactInfo,
-        instagram: value
+        instagram: value || undefined
       }
     }));
+
+    // Validate
+    if (value === '') {
+      setValidationErrors(prev => ({ ...prev, instagram: undefined }));
+      return;
+    }
+    
+    if (!value.startsWith('@')) {
+      setValidationErrors(prev => ({ ...prev, instagram: 'El usuario de Instagram debe comenzar con @' }));
+    } else {
+      setValidationErrors(prev => ({ ...prev, instagram: undefined }));
+    }
+  };
+
+  const clearInstagram = () => {
+    setFormData(prev => ({
+      ...prev,
+      contactInfo: {
+        ...prev.contactInfo,
+        instagram: undefined
+      }
+    }));
+    setValidationErrors(prev => ({ ...prev, instagram: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -446,7 +467,7 @@ export default function BusinessEditForm({ business, onSuccess }: BusinessEditFo
                 type="text"
                 id="instagram"
                 value={formData.contactInfo.instagram}
-                onChange={(e) => handleInstagramChange(e.target.value)}
+                onChange={handleInstagramChange}
                 className={`block w-full pl-8 pr-3 py-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 ${
                   validationErrors.instagram 
                     ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500' 
