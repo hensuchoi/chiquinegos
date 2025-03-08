@@ -7,16 +7,14 @@ import {
 } from 'firebase/storage';
 import { storage } from './firebase';
 
-interface UploadProgress {
+interface ProgressCallback {
   progress: number;
-  downloadUrl?: string;
-  error?: string;
 }
 
 export const uploadBusinessImage = async (
   file: File,
   businessId: string,
-  onProgress?: (progress: UploadProgress) => void
+  onProgress?: (progress: ProgressCallback) => void
 ): Promise<string> => {
   try {
     // Create a unique filename
@@ -41,21 +39,17 @@ export const uploadBusinessImage = async (
         },
         // Error callback
         (error) => {
-          console.error('Error uploading file:', error);
-          const errorMessage = getErrorMessage(error);
-          onProgress?.({ progress: 0, error: errorMessage });
+          console.error('Error uploading image:', error);
           reject(error);
         },
         // Complete callback
         async () => {
           try {
-            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            onProgress?.({ progress: 100, downloadUrl });
-            resolve(downloadUrl);
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            onProgress?.({ progress: 100 });
+            resolve(downloadURL);
           } catch (error) {
             console.error('Error getting download URL:', error);
-            const errorMessage = getErrorMessage(error);
-            onProgress?.({ progress: 0, error: errorMessage });
             reject(error);
           }
         }
@@ -63,8 +57,6 @@ export const uploadBusinessImage = async (
     });
   } catch (error) {
     console.error('Error in uploadBusinessImage:', error);
-    const errorMessage = getErrorMessage(error);
-    onProgress?.({ progress: 0, error: errorMessage });
     throw error;
   }
 };

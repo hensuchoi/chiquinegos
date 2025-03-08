@@ -14,9 +14,16 @@ export interface Business {
     whatsapp: string;
   };
   images: string[];
+  reviews: Review[];
+  rating: number;
   createdAt: Date;
   updatedAt: Date;
   userId: string;
+}
+
+export interface FirestoreBusiness extends Omit<Business, 'id' | 'createdAt' | 'updatedAt'> {
+  createdAt: Date | FirebaseFirestore.Timestamp;
+  updatedAt: Date | FirebaseFirestore.Timestamp;
 }
 
 export interface Review {

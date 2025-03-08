@@ -20,7 +20,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { Business, BusinessFormData, BusinessUpdateData } from '../types/business';
+import { Business, BusinessFormData, BusinessUpdateData, Review, FirestoreBusiness } from '../types/business';
 import { uploadBusinessImage } from './storageUtils';
 
 // Auth functions
@@ -172,31 +172,38 @@ export async function getBusinessById(id: string): Promise<Business | null> {
   const docSnap = await getDoc(docRef);
 
   if (docSnap.exists()) {
-    const data = docSnap.data();
-    // Ensure reviews array exists and tags are properly formatted
-    const reviews = (data.reviews || []).map((review: any) => ({
-      ...review,
-      tags: Array.isArray(review.tags) ? review.tags : [],
-      createdAt: review.createdAt?.toDate() || new Date(),
-    }));
-
+    const data = docSnap.data() as FirestoreBusiness;
+    
+    // Convert Firestore timestamps to Dates and ensure proper typing
     return {
       id: docSnap.id,
       ...data,
-      reviews,
+      reviews: (data.reviews || []).map((review: any) => ({
+        ...review,
+        tags: Array.isArray(review.tags) ? review.tags : [],
+        createdAt: review.createdAt?.toDate() || new Date(),
+        ownerResponse: review.ownerResponse ? {
+          ...review.ownerResponse,
+          createdAt: review.ownerResponse.createdAt?.toDate() || new Date()
+        } : undefined
+      })),
       createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date(),
-    } as Business;
+      updatedAt: data.updatedAt?.toDate() || new Date()
+    };
   }
 
   return null;
+}
+
+interface ProgressCallback {
+  progress: number;
 }
 
 // Create new business
 export async function createBusiness(
   data: BusinessFormData,
   userId: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: ProgressCallback) => void
 ): Promise<string> {
   try {
     // Format location data
@@ -217,6 +224,8 @@ export async function createBusiness(
       contactInfo: data.contactInfo,
       images: [], // Start with empty images array
       userId: userId,
+      reviews: [],
+      rating: 0,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -229,11 +238,11 @@ export async function createBusiness(
         const url = await uploadBusinessImage(
           image,
           docRef.id,
-          ({ progress }) => {
+          (progress: ProgressCallback) => {
             // Calculate overall progress considering all images
             const overallProgress = 
-              (index * 100 + progress) / data.images.length;
-            onProgress?.(overallProgress);
+              (index * 100 + progress.progress) / data.images.length;
+            onProgress?.({ progress: overallProgress });
           }
         );
         return url;
@@ -243,7 +252,7 @@ export async function createBusiness(
     // Update the business document with image URLs
     await updateDoc(docRef, {
       images: imageUrls,
-      updatedAt: new Date()
+      updatedAt: serverTimestamp()
     });
 
     return docRef.id;
@@ -297,12 +306,12 @@ export async function addReview(
   if (!business) throw new Error('Business not found');
   
   // Prevent owners from reviewing their own business
-  if (business.ownerId === userId) {
+  if (business.userId === userId) {
     throw new Error('No puedes calificar tu propio negocio');
   }
 
   // Prevent duplicate reviews from the same user
-  if (business.reviews?.some(review => review.userId === userId)) {
+  if (business.reviews.some(review => review.userId === userId)) {
     throw new Error('Ya has calificado este negocio');
   }
 
@@ -316,38 +325,30 @@ export async function addReview(
     throw new Error('Debes seleccionar al menos un aspecto para calificar');
   }
 
-  const review = {
+  const review: Review = {
     id: crypto.randomUUID(),
     userId,
     rating,
     tags: validTags,
-    createdAt: new Date(),
+    createdAt: new Date()
   };
 
-  const updatedReviews = [...(business.reviews || []), review];
+  const updatedReviews = [...business.reviews, review];
   const averageRating = updatedReviews.reduce((acc, rev) => acc + rev.rating, 0) / updatedReviews.length;
 
   await updateDoc(doc(db, 'businesses', businessId), {
     reviews: updatedReviews,
     rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
-    updatedAt: new Date()
+    updatedAt: serverTimestamp()
   });
 }
 
-export async function respondToReview(businessId: string, reviewId: string, responseText: string) {
-  const businessRef = doc(db, 'businesses', businessId);
-  const businessDoc = await getDoc(businessRef);
+export async function respondToReview(businessId: string, reviewId: string, responseText: string): Promise<void> {
+  const business = await getBusinessById(businessId);
+  if (!business) throw new Error('Business not found');
 
-  if (!businessDoc.exists()) {
-    throw new Error('Business not found');
-  }
-
-  const business = businessDoc.data() as Business;
   const reviewIndex = business.reviews.findIndex(r => r.id === reviewId);
-
-  if (reviewIndex === -1) {
-    throw new Error('Review not found');
-  }
+  if (reviewIndex === -1) throw new Error('Review not found');
 
   const updatedReviews = [...business.reviews];
   updatedReviews[reviewIndex] = {
@@ -358,25 +359,18 @@ export async function respondToReview(businessId: string, reviewId: string, resp
     }
   };
 
-  await updateDoc(businessRef, {
-    reviews: updatedReviews
+  await updateDoc(doc(db, 'businesses', businessId), {
+    reviews: updatedReviews,
+    updatedAt: serverTimestamp()
   });
 }
 
-export async function flagReview(businessId: string, reviewId: string, reason: string) {
-  const businessRef = doc(db, 'businesses', businessId);
-  const businessDoc = await getDoc(businessRef);
+export async function flagReview(businessId: string, reviewId: string, reason: string): Promise<void> {
+  const business = await getBusinessById(businessId);
+  if (!business) throw new Error('Business not found');
 
-  if (!businessDoc.exists()) {
-    throw new Error('Business not found');
-  }
-
-  const business = businessDoc.data() as Business;
   const reviewIndex = business.reviews.findIndex(r => r.id === reviewId);
-
-  if (reviewIndex === -1) {
-    throw new Error('Review not found');
-  }
+  if (reviewIndex === -1) throw new Error('Review not found');
 
   const updatedReviews = [...business.reviews];
   const currentFlags = updatedReviews[reviewIndex].flags || { count: 0, reasons: [] };
@@ -389,28 +383,25 @@ export async function flagReview(businessId: string, reviewId: string, reason: s
     }
   };
 
-  await updateDoc(businessRef, {
-    reviews: updatedReviews
+  await updateDoc(doc(db, 'businesses', businessId), {
+    reviews: updatedReviews,
+    updatedAt: serverTimestamp()
   });
 }
 
-export async function deleteReview(businessId: string, reviewId: string) {
-  const businessRef = doc(db, 'businesses', businessId);
-  const businessDoc = await getDoc(businessRef);
+export async function deleteReview(businessId: string, reviewId: string): Promise<void> {
+  const business = await getBusinessById(businessId);
+  if (!business) throw new Error('Business not found');
 
-  if (!businessDoc.exists()) {
-    throw new Error('Business not found');
-  }
-
-  const business = businessDoc.data() as Business;
   const updatedReviews = business.reviews.filter(r => r.id !== reviewId);
 
   // Recalculate average rating
   const totalRating = updatedReviews.reduce((sum, review) => sum + review.rating, 0);
   const newRating = updatedReviews.length > 0 ? totalRating / updatedReviews.length : 0;
 
-  await updateDoc(businessRef, {
+  await updateDoc(doc(db, 'businesses', businessId), {
     reviews: updatedReviews,
-    rating: newRating
+    rating: Math.round(newRating * 10) / 10,
+    updatedAt: serverTimestamp()
   });
 }

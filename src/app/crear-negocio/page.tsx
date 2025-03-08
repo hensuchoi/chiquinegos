@@ -51,6 +51,8 @@ export default function CreateBusinessPage() {
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<{ file: File; preview: string }[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Cleanup previews on unmount
   useEffect(() => {
@@ -116,25 +118,23 @@ export default function CreateBusinessPage() {
     setError('');
 
     try {
-      // Update formData with the selected images
       const updatedFormData = {
         ...formData,
-        images: imageFiles
+        images: selectedImages.map(img => img.file)
       };
 
       const businessId = await createBusiness(
         updatedFormData,
         user.uid,
         ({ progress }) => {
-          // Handle progress if needed
-          console.log('Upload progress:', progress);
+          setUploadProgress(progress);
         }
       );
 
       showToast('Negocio creado exitosamente', 'success');
       router.push(`/negocio/${businessId}`);
-    } catch (err) {
-      console.error('Error creating business:', err);
+    } catch (error) {
+      console.error('Error creating business:', error);
       setError('Error al crear el negocio. Por favor intente de nuevo.');
       showToast('Error al crear el negocio', 'error');
     } finally {
