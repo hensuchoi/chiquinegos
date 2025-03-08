@@ -6,21 +6,19 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Business } from '@/lib/types/business';
 import { getBusinessById, addReview } from '@/lib/firebase/firebaseUtils';
 import ImageCarousel from '@/app/components/ImageCarousel';
+import { Timestamp } from 'firebase/firestore';
 
-const formatDate = (timestamp: any): string => {
+const formatDate = (timestamp: Date | Timestamp | null): string => {
   if (!timestamp) return 'Fecha no disponible';
   
   try {
     let date: Date;
     // Handle Firestore Timestamp
-    if (timestamp?.toDate) {
+    if ('toDate' in timestamp) {
       date = timestamp.toDate();
     } else {
-      // Handle string or number timestamp
-      date = new Date(timestamp);
-      if (date.toString() === 'Invalid Date') {
-        return 'Fecha no disponible';
-      }
+      // Handle Date object
+      date = timestamp;
     }
     
     // Format as DD/MM/YYYY
@@ -56,7 +54,7 @@ const REVIEW_TAGS = {
 };
 
 export default function BusinessDetailPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
@@ -69,10 +67,14 @@ export default function BusinessDetailPage() {
   const loadBusiness = useCallback(async () => {
     try {
       const data = await getBusinessById(id as string);
-      setBusiness({
-        ...data,
-        reviews: data?.reviews || []
-      });
+      if (data) {
+        setBusiness({
+          ...data,
+          reviews: data.reviews || []
+        });
+      } else {
+        setBusiness(null);
+      }
     } catch (err) {
       setError('Error al cargar el negocio');
       console.error('Error loading business:', err);
@@ -93,12 +95,13 @@ export default function BusinessDetailPage() {
     try {
       await addReview(business.id, user.uid, rating, selectedTags);
       const updatedBusiness = await getBusinessById(business.id);
-      setBusiness(updatedBusiness);
-      setSelectedTags([]);
-      setRating(5);
+      if (updatedBusiness) {
+        setBusiness(updatedBusiness);
+        setSelectedTags([]);
+        setRating(5);
+      }
     } catch (err) {
       console.error('Error submitting review:', err);
-      // Show error message to user
       alert(err instanceof Error ? err.message : 'Error al enviar la calificación');
     } finally {
       setSubmittingReview(false);
@@ -156,7 +159,7 @@ export default function BusinessDetailPage() {
             </span>
           </div>
         </div>
-        {user && user.uid === business.ownerId && (
+        {user && user.uid === business.userId && (
           <button
             onClick={() => router.push(`/negocio/${business.id}/editar-negocio`)}
             className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -178,9 +181,9 @@ export default function BusinessDetailPage() {
           <div className="mt-6">
             <h2 className="text-xl font-semibold text-gray-900">Ubicación</h2>
             <p className="mt-2 text-gray-600">
-              {business.location.isNational 
+              {business.location?.isNational 
                 ? 'Cobertura Nacional'
-                : `${business.location.province}, ${business.location.city}`
+                : `${business.location?.province || ''}, ${business.location?.city || ''}`
               }
             </p>
           </div>
@@ -192,7 +195,7 @@ export default function BusinessDetailPage() {
               Información de Contacto
             </h2>
             <div className="space-y-4">
-              {business.contactInfo.whatsapp && (
+              {business.contactInfo?.whatsapp && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">WhatsApp</h3>
                   <a
@@ -209,7 +212,7 @@ export default function BusinessDetailPage() {
                 </div>
               )}
               
-              {business.contactInfo.email && (
+              {business.contactInfo?.email && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Email</h3>
                   <a
@@ -224,7 +227,7 @@ export default function BusinessDetailPage() {
                 </div>
               )}
               
-              {business.contactInfo.instagram && (
+              {business.contactInfo?.instagram && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Instagram</h3>
                   <a
@@ -243,7 +246,7 @@ export default function BusinessDetailPage() {
             </div>
           </div>
 
-          {user && user.uid !== business.ownerId ? (
+          {user && user.uid !== business.userId ? (
             <div className="mt-6 bg-white shadow rounded-lg p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 Calificar Negocio
@@ -324,7 +327,7 @@ export default function BusinessDetailPage() {
                 </button>
               </form>
             </div>
-          ) : user && user.uid === business.ownerId ? (
+          ) : user && user.uid === business.userId ? (
             <div className="mt-6 bg-white shadow rounded-lg p-6">
               <div className="text-center text-gray-600">
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,9 +370,9 @@ export default function BusinessDetailPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {(review.tags || []).map((tag, index) => {
-                        const isPositive = REVIEW_TAGS.positive.includes(tag?.trim() || '');
-                        const isNegative = REVIEW_TAGS.negative.includes(tag?.trim() || '');
+                      {review.tags.map((tag, index) => {
+                        const isPositive = REVIEW_TAGS.positive.includes(tag);
+                        const isNegative = REVIEW_TAGS.negative.includes(tag);
                         return (
                           <span
                             key={index}
@@ -378,7 +381,7 @@ export default function BusinessDetailPage() {
                                 isNegative ? 'bg-red-100 text-red-800' : 
                                 'bg-gray-100 text-gray-700'}`}
                           >
-                            {tag?.trim() || ''}
+                            {tag}
                           </span>
                         );
                       })}
