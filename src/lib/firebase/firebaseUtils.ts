@@ -22,6 +22,7 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Business, BusinessFormData, BusinessUpdateData, Review, FirestoreBusiness } from '../types/business';
 import { uploadBusinessImage } from './storageUtils';
+import { Timestamp } from "firebase/firestore";
 
 // Auth functions
 export const logoutUser = () => signOut(auth);
@@ -181,14 +182,16 @@ export async function getBusinessById(id: string): Promise<Business | null> {
       reviews: (data.reviews || []).map((review: any) => ({
         ...review,
         tags: Array.isArray(review.tags) ? review.tags : [],
-        createdAt: review.createdAt?.toDate() || new Date(),
+        createdAt: review.createdAt instanceof Timestamp ? review.createdAt.toDate() : (review.createdAt || new Date()),
         ownerResponse: review.ownerResponse ? {
           ...review.ownerResponse,
-          createdAt: review.ownerResponse.createdAt?.toDate() || new Date()
+          createdAt: review.ownerResponse.createdAt instanceof Timestamp 
+            ? review.ownerResponse.createdAt.toDate() 
+            : (review.ownerResponse.createdAt || new Date())
         } : undefined
       })),
-      createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date()
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : (data.createdAt || new Date()),
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : (data.updatedAt || new Date())
     };
   }
 
