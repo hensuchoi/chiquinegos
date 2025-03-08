@@ -37,7 +37,7 @@ export default function EditBusinessPage({ params }: { params: { id: string } })
 
   // Check ownership
   useEffect(() => {
-    if (!loading && business && business.ownerId !== user?.uid) {
+    if (!loading && business && business.userId !== user?.uid) {
       router.push(`/negocio/${params.id}`);
     }
   }, [loading, business, user, router, params.id]);
