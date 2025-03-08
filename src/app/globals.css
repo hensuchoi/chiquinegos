@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  .font-brand {
+    font-family: var(--font-outfit);
+  }
+}
+
+@layer components {
+  .brand-text {
+    @apply font-brand font-semibold tracking-tight;
+  }
+  
+  .brand-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500;
+  }
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
