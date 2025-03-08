@@ -128,12 +128,12 @@ export function ReviewManagement({ businessId, reviews, onReviewUpdate }: Review
                   </div>
                   
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {review.comment?.split(',').filter(Boolean).map((tag, index) => (
+                    {review.tags.map((tag, index) => (
                       <span
                         key={index}
                         className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
                       >
-                        {tag.trim()}
+                        {tag}
                       </span>
                     ))}
                   </div>
